@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="{{lang}}">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>BPMN viewer</title>
+	<!-- bpmn-js lo aporta la aplicación (p. ej. el WebJar org.webjars.npm:bpmn-js); su ruta es pac.process.web.bpmn-js-location -->
+	<link rel="stylesheet" href="{{bpmnJs}}/assets/diagram-js.css">
+	<link rel="stylesheet" href="{{bpmnJs}}/assets/bpmn-js.css">
+	<link rel="stylesheet" href="{{bpmnJs}}/assets/bpmn-font/css/bpmn.css">
+	<link rel="stylesheet" href="{{static}}/viewer.css">
+</head>
+<body data-api="{{api}}">
+	<!-- Los textos por defecto están en inglés; viewer.js los sustituye por los del idioma pedido. -->
+	<header class="viewer-header">
+		<label for="view" data-i18n="diagram">Diagram</label>
+		<select id="view" class="form-select form-select-sm w-auto"></select>
+		<!-- Alternativa al ratón: cualquier elemento del diagrama se puede elegir con el teclado (2.1.1). -->
+		<label for="element" data-i18n="pick">Element</label>
+		<select id="element" class="form-select form-select-sm w-auto"></select>
+		<button id="fit" type="button" class="btn btn-outline-secondary btn-sm" data-i18n="fit">Fit to window</button>
+		<a id="download" href="#" class="link-primary" data-i18n="download">Download .bpmn</a>
+		<span id="status" role="status"></span>
+	</header>
+	<!-- Barra para mostrar/ocultar los identificadores por tipo de elemento (índice móvil, WCAG 2.2 AA) -->
+	<div id="id-toolbar" role="toolbar" aria-labelledby="id-toolbar-label" class="viewer-toolbar">
+		<span id="id-toolbar-label" class="viewer-toolbar-label" data-i18n="showIds">Show IDs</span>
+		<div class="btn-group">
+			<button type="button" class="btn btn-outline-secondary btn-sm" data-kind="task" aria-pressed="false"
+					tabindex="0" data-i18n="ids.tasks">Tasks</button>
+			<button type="button" class="btn btn-outline-secondary btn-sm" data-kind="event" aria-pressed="false"
+					tabindex="-1" data-i18n="ids.events">Events</button>
+			<button type="button" class="btn btn-outline-secondary btn-sm" data-kind="gateway" aria-pressed="false"
+					tabindex="-1" data-i18n="ids.gateways">Gateways</button>
+		</div>
+	</div>
+	<!-- Camino seguido por una instancia (?instance=): resumen en texto y leyenda; el color nunca es la única pista. -->
+	<section id="path-legend" class="viewer-path" hidden aria-labelledby="path-title">
+		<h2 id="path-title" class="viewer-path-title"></h2>
+		<p id="path-summary" class="viewer-path-summary"></p>
+		<ul class="viewer-path-key">
+			<li><span class="key-visited" aria-hidden="true">1</span> <span data-i18n="path.visited">Step executed (the number is its order)</span></li>
+			<li><span class="key-taken" aria-hidden="true"></span> <span data-i18n="path.taken">Sequence flow taken</span></li>
+			<li><span class="key-waiting" aria-hidden="true"></span> <span data-i18n="path.waiting">Waiting step</span></li>
+		</ul>
+	</section>
+	<!-- Mapa de calor de una versión (?heatmap=1): resumen en texto, escala continua y cifras a la vista si se piden. -->
+	<section id="heat-legend" class="viewer-path" hidden aria-labelledby="heat-title">
+		<h2 id="heat-title" class="viewer-path-title"></h2>
+		<p id="heat-summary" class="viewer-path-summary"></p>
+		<div class="viewer-path-key">
+			<span><span data-i18n="heat.less">Fewer executions</span> <span class="heat-gradient" aria-hidden="true"></span> <span data-i18n="heat.more">More executions</span></span>
+			<span data-i18n="heat.never">No colour: never executed</span>
+			<button id="heat-numbers" type="button" class="btn btn-outline-secondary btn-sm" aria-pressed="false" data-i18n="heat.numbers">Show figures</button>
+		</div>
+	</section>
+	<main>
+		<!-- El contenedor es un grupo etiquetado: dentro van la imagen del diagrama (svg con role="img") y el enlace
+		     «Powered by bpmn.io» que exige la licencia; una imagen no puede contener enlaces (WCAG 4.1.2). -->
+		<div id="canvas" role="group" aria-label="BPMN diagram"></div>
+		<!-- Ficha del elemento seleccionado: proceso, versión exacta y código que lo implementa (la llena viewer.js). -->
+		<aside id="details" hidden aria-labelledby="details-name">
+			<button id="close-details" type="button" class="btn-close" aria-label="Close" data-i18n-aria="details.close"></button>
+			<p id="details-kind" class="details-kind"></p>
+			<h2 id="details-name"></h2>
+			<div id="details-body"></div>
+		</aside>
+	</main>
+	<script src="{{bpmnJs}}/bpmn-navigated-viewer.production.min.js"></script>
+	<script src="{{static}}/viewer.js"></script>
+</body>
+</html>

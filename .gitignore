@@ -1,0 +1,107 @@
+# Files Git must not track in Linneo.
+#
+# Sections go from what this project produces to what each contributor's machine adds. Patterns with a leading
+# slash match at the repository root only; patterns ending in a slash match directories only. Editor and OS
+# entries are here for convenience; a global ignore file (git config core.excludesFile) is the better place for them.
+
+# --- Maven build -------------------------------------------------------------------------------------------------
+
+# Compiled classes, test reports, Javadoc, jars and release signatures.
+target/
+
+# Leftovers of the release, versions and flatten plugins.
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.flattened-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# The wrapper downloads Maven itself (distributionType=only-script); a jar here is never committed.
+.mvn/wrapper/maven-wrapper.jar
+
+# --- JVM ---------------------------------------------------------------------------------------------------------
+
+# Class files outside target/, from a stray javac run.
+*.class
+
+# Crash and replay logs written by the JVM.
+hs_err_pid*.log
+replay_pid*.log
+
+# --- Documentation site (docs/, Jekyll) --------------------------------------------------------------------------
+
+# Output and caches of a local preview build; GitHub Actions builds the published site.
+docs/_site/
+docs/.jekyll-cache/
+docs/.jekyll-metadata
+docs/.sass-cache/
+docs/.bundle/
+docs/vendor/
+
+# --- Tools (tools/, Python) --------------------------------------------------------------------------------------
+
+__pycache__/
+*.py[cod]
+
+# --- Local AI tooling --------------------------------------------------------------------------------------------
+
+# Claude Code: personal settings, local memory, agent worktrees and the docs-gate review stamp.
+# The shared .claude/settings.json, .claude/agents/ and .claude/hooks/ are committed.
+.claude/settings.local.json
+.claude/docs-sync.stamp
+.claude/worktrees/
+CLAUDE.local.md
+
+# CodeGraph: per-machine code index.
+/.codegraph/
+
+# --- IDEs --------------------------------------------------------------------------------------------------------
+
+# IntelliJ IDEA: the project is imported from pom.xml, so no IDE files are shared.
+.idea/
+*.iml
+*.ipr
+*.iws
+/out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated/
+.apt_generated_tests/
+/bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/nbdist/
+/dist/
+nbactions.xml
+
+# Visual Studio Code
+.vscode/
+
+# --- Editors and operating systems -------------------------------------------------------------------------------
+
+# Backup, swap and merge leftovers.
+*~
+*.swp
+*.swo
+*.orig
+*.rej
+
+# macOS
+.DS_Store
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/

@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/docs-sync-check.sh\"",
+            "timeout": 30,
+            "statusMessage": "Comprobando si la documentación está al día..."
+          }
+        ]
+      }
+    ]
+  }
+}

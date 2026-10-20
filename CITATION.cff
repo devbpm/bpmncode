@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "Si usas bpmncode en un trabajo o producto, cítalo así."
+title: "bpmncode"
+abstract: "Procesos BPMN 2.0 escritos en Java para Spring Boot: el código anotado es la única fuente de verdad."
+type: software
+authors:
+  - alias: eldiegos
+license: Apache-2.0
+repository-code: "https://github.com/eldiegos/bpmncode"
+url: "https://github.com/eldiegos/bpmncode"
+keywords:
+  - bpmn
+  - spring-boot
+  - process-governance
+  - code-first
+version: 0.1.0

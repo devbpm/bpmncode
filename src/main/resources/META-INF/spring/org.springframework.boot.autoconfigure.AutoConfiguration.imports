@@ -1,0 +1,5 @@
+io.github.eldiegos.bpmncode.model.ProcessModelAutoConfiguration
+io.github.eldiegos.bpmncode.runtime.ProcessRuntimeAutoConfiguration
+io.github.eldiegos.bpmncode.bpmn.BpmnAutoConfiguration
+io.github.eldiegos.bpmncode.statistics.ProcessStatisticsAutoConfiguration
+io.github.eldiegos.bpmncode.web.ProcessWebAutoConfiguration
