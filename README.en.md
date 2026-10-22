@@ -110,12 +110,14 @@ Starting from scratch? Follow the [step-by-step course](docs/en/course/README.md
 | [Configuration and integration](docs/en/configuration.md) | beans and how to replace them, properties, optional dependencies, Spring Modulith and application tests |
 | [Internal architecture](docs/en/architecture.md) | packages, public and internal API, how the model is read |
 | [Publishing](docs/en/publishing.md) | how a version is published to Maven Central |
+| [Code quality](docs/en/quality.md) | coverage with JaCoCo and analysis with SonarQube in a container |
 
 ## Building
 
 ```bash
 ./mvnw verify                              # compiles and runs the tests
 ./mvnw -Prelease verify -Dgpg.skip         # also sources and Javadoc jars
+./mvnw -Psonar verify                      # also SonarQube analysis (needs Docker)
 ```
 
 ## Status

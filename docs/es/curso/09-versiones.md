@@ -435,7 +435,16 @@ Process definition EXP-PAYMENT v1 'Expense payment': 3 flow nodes, 2 sequence fl
   ambiguo y también da `AMBIGUOUS_REFERENCE`. Indica `@ProcessPart(processRef = "EXP-CLAIM", version = 1)`.
 - **Retirar la v1 demasiado pronto.** Antes de borrar `ExpenseClaimProcess`, comprueba que no quedan instancias
   activas suyas, p. ej. con `history.instances(ProcessDefinitionRef.of("EXP-CLAIM", 1))` filtrando las
-  `ProcessInstanceSummary.Active`. Las constantes que comparte con la v2 tendrás que moverlas antes.
+  `ProcessInstanceSummary.Active`. Las constantes que comparte con la v2 tendrás que moverlas antes. Si la borras con
+  solicitudes v1 pendientes, al arrancar verás el aviso
+
+  ```
+  Active process instances belong to versions that are no longer deployed: [EXP-CLAIM v1]. They cannot continue until the @Process class of each version is deployed again (set pac.process.store.undeployed-versions=fail to stop the start-up instead)
+  ```
+
+  y aprobarlas fallará con `Process instance <id> runs EXP-CLAIM v1, which is no longer deployed: keep the @Process
+  class of every version that still has active instances`. Con `pac.process.store.undeployed-versions=fail` la
+  aplicación no arranca (véase [Retirar una versión](../versiones.md#retirar-una-versión)).
 
 ## Ejercicio
 

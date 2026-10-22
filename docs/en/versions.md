@@ -50,8 +50,36 @@ public class PersonRegistrationV2 { … }        // requires age 18 and a docume
 | Applying another version of a rule | yes, if instances must be able to tell which rule was applied to them |
 | Changing the start contract in an incompatible way | yes, and the previous version coexists while someone uses it |
 
-To retire a version, stop starting it and delete it when no active instances of it remain
-(`ProcessInstanceHistory.instances()` filtered by `processVersion()`).
+### Retiring a version
+
+To retire a version, stop starting it and delete its `@Process` class when no active instances of it remain
+(`ProcessInstanceHistory.instances(ProcessDefinitionRef.of("PER-REGISTRATION", 1))` filtering the
+`ProcessInstanceSummary.Active` ones).
+
+If it is retired too early, the active instances of that version cannot advance: their next step throws
+`ProcessConformanceException` (`Process instance <id> runs PER-REGISTRATION v1, which is no longer deployed: keep the
+@Process class of every version that still has active instances`). The history and the views still list them:
+completed ones, as always; active ones, with an empty `nextFlowNodeIds()`. To find out before the first step, the
+library checks at startup whether there are active instances of versions that are no longer deployed. It only queries
+the versions with active instances (`ProcessInstanceStore#activeVersions()`), not the instances. What to do if there
+are any is a decision of the application, with `pac.process.store.undeployed-versions`:
+
+| Value | What it does |
+|---|---|
+| `warn` (default) | logs a warning with the affected versions and starts |
+| `fail` | does not start |
+| `ignore` | does not check (e.g. if the application monitors it on its own) |
+
+```
+Active process instances belong to versions that are no longer deployed: [PER-REGISTRATION v1]. They cannot continue until the @Process class of each version is deployed again (set pac.process.store.undeployed-versions=fail to stop the start-up instead)
+```
+
+With `fail`, startup fails with an `IllegalStateException` with the same message, ending in
+`(pac.process.store.undeployed-versions=fail)`. If the store cannot be queried at startup, with `warn` only the warning
+`Could not check whether active process instances belong to deployed versions: …` is logged and the application
+starts; with `fail`, it does not start.
+
+To recover those instances, deploy the `@Process` class of their version again.
 
 ## Business rule versions
 

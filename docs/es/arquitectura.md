@@ -66,9 +66,13 @@ tipo de nodo (`ProcessLayout`) y traza los flujos con segmentos ortogonales (`Ed
 `ProcessJournal` carga la instancia del almacén (`ProcessInstanceRecord`) en un `ProcessInstance` interno, que guarda el
 token y el estado y comprueba cada avance (`ProcessInstance.checkAdvance`) contra la `ProcessDefinition` de su versión.
 Si el avance es válido, el journal guarda el nuevo estado con bloqueo optimista y añade un `FlowNodeInstanceRecord`; si
-no, no guarda nada. La lectura pasa siempre por `ProcessInstanceHistory`, que ordena y devuelve records inmutables.
+no, no guarda nada. La lectura pasa siempre por `ProcessInstanceHistory`, que ordena y devuelve records inmutables;
+una instancia cuya versión ya no está desplegada se sigue leyendo, sin nodos a los que avanzar. Al arrancar,
+`UndeployedVersionsCheck` compara `ProcessInstanceStore#activeVersions()` con el registro de definiciones según
+`pac.process.store.undeployed-versions`.
 
-El almacén (`ProcessInstanceStore`) no sabe nada de conformidad: solo guarda y lee. Así la misma lógica funciona en
+El almacén (`ProcessInstanceStore`) no sabe nada de conformidad: solo guarda y lee, con las garantías de su contrato
+(una instancia por proceso y correlación, bloqueo optimista y cada posición del historial una sola vez). Así la misma lógica funciona en
 memoria, con JDBC, con JPA o con un almacén de la aplicación. La autoconfiguración solo carga las clases JDBC si
 `spring-jdbc` está en el classpath, y las JPA si lo están JPA y `spring-orm`. `JpaEntityPackageRegistrar` añade el
 paquete `runtime.jpa` a los paquetes de autoconfiguración, sin cargar ninguna clase JPA, para que la unidad de
@@ -99,7 +103,10 @@ las pruebas del journal que debe pasar cualquier almacén; la extienden `InMemor
 `JdbcProcessInstanceStoreTests` (sobre H2), y se publica en el jar de pruebas (clasificador `tests`) para probar
 almacenes propios. `JpaProcessInstanceStoreTests` prueba el almacén JPA con Hibernate y H2 en un contexto de Spring, y
 `ProcessRuntimeAutoConfigurationTests` comprueba qué almacén se elige con y sin `DataSource`, sin `spring-jdbc`, con un
-almacén propio y con `pac.process.store.type`. `ProcessExecutionStatisticsTests` prueba las estadísticas y
+almacén propio y con `pac.process.store.type`. `ProcessJournalRobustnessTests` prueba las versiones retiradas con
+instancias guardadas, la comprobación del arranque y dos pasos concurrentes sin transacción.
+`ProcessExecutionStatisticsTests` prueba las estadísticas y
 `ProcessWebAutoConfigurationTests`, cuándo se activa el módulo web y sus rutas. El jar de pruebas lleva también
 `ProcessAssertions` y los XSD de OMG, para las pruebas de las aplicaciones (véase
-[Configuración](configuracion.md#processassertions)).
+[Configuración](configuracion.md#processassertions)). La cobertura con JaCoCo y el análisis con SonarQube
+(`SonarQubeAnalysisIT`, perfil `sonar`, fuera del jar de pruebas) se describen en [Calidad del código](calidad.md).

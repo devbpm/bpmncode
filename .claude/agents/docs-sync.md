@@ -34,6 +34,7 @@ Reglas:
   | `anotaciones.md` | `annotations.md` |
   | `arquitectura.md` | `architecture.md` |
   | `bpmn-trazabilidad-i18n.md` | `bpmn-traceability-i18n.md` |
+  | `calidad.md` | `quality.md` |
   | `configuracion.md` | `configuration.md` |
   | `ejecucion.md` | `execution.md` |
   | `estadisticas-web.md` | `statistics-web.md` |

@@ -109,12 +109,14 @@ puede verificar que solo usa la API pública de la librería ([Configuración](d
 | [Configuración e integración](docs/es/configuracion.md) | beans y cómo sustituirlos, propiedades, dependencias opcionales, Spring Modulith y pruebas de la aplicación |
 | [Arquitectura interna](docs/es/arquitectura.md) | paquetes, API pública e interna, cómo se lee el modelo |
 | [Publicación](docs/es/publicacion.md) | cómo se publica una versión en Maven Central |
+| [Calidad del código](docs/es/calidad.md) | cobertura con JaCoCo y análisis con SonarQube en un contenedor |
 
 ## Construir
 
 ```bash
 ./mvnw verify                              # compila y ejecuta las pruebas
 ./mvnw -Prelease verify -Dgpg.skip         # además, jar de fuentes y Javadoc
+./mvnw -Psonar verify                      # además, análisis con SonarQube (necesita Docker)
 ```
 
 ## Estado

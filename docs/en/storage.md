@@ -14,7 +14,7 @@ its own.
 | your own | you define a `ProcessInstanceStore` bean | whatever your implementation uses |
 
 Whatever the store, the journal applies the same rules: one instance per process and correlation, optimistic locking
-and append-only evidence.
+and append-only evidence, with each position of an instance's history recorded only once.
 
 ## Choosing the store
 
@@ -67,8 +67,11 @@ context as your entities.
   with `jpa` the application does not start.
 - **A transaction is required to write.** The journal opens one with `@Transactional` (Spring Transaction comes with
   `spring-boot-starter-data-jpa`). Writing without a transaction fails with `TransactionRequiredException` instead of
-  silently losing the change.
+  silently losing the change. Queries (`instances()`, `flowNodeInstances(…)`…) also work outside a transaction.
 - **Optimistic locking** with `@Version` on the `version` column.
+- **Each position of the history, only once.** The entity declares the unique constraint
+  `uk_pac_flow_node_instance_sequence` on `(process_instance_id, sequence)` and `append` checks first whether the
+  position is already taken.
 - **Schema.** If Hibernate generates the schema (`spring.jpa.hibernate.ddl-auto`), it also creates these tables,
   because the entities are part of the persistence unit. Otherwise they are created with the script, as with JDBC (see
   [Creating the tables](#creating-the-tables)).
@@ -77,14 +80,15 @@ context as your entities.
 
 `JdbcProcessInstanceStore` uses Spring's `JdbcClient` with the application's `DataSource`. It does not need JPA, but
 it coexists with it: if you choose `pac.process.store.type=jdbc` in an application with JPA, the store writes with the
-same connection as the current transaction.
+same connection as the current transaction. If the unique index `uk_pac_flow_node_instance_sequence` rejects a record
+(`DuplicateKeyException`), it translates it into `ProcessInstanceConflictException`.
 
 ### Tables
 
 | Table | Content |
 |---|---|
 | `pac_process_instance` | one row per instance: process, version, correlation, state (`ACTIVE`/`COMPLETED`), current node, `loopCounter`, selected flow, start and end messages, timestamps and `version` for optimistic locking. Unique constraint `uk_pac_process_instance_correlation` on `(process_id, correlation_key)` and index `ix_pac_process_instance_process_version` on `(process_id, process_version)` |
-| `pac_flow_node_instance` | one row per step: instance, sequence number, process, version, node, type, `loopCounter`, timestamp and outcome. Indexes `ix_pac_flow_node_instance_process_instance` on `process_instance_id` and `ix_pac_flow_node_instance_process_version` on `(process_id, process_version)` |
+| `pac_flow_node_instance` | one row per step: instance, sequence number, process, version, node, type, `loopCounter`, timestamp and outcome. Unique index `uk_pac_flow_node_instance_sequence` on `(process_instance_id, sequence)` and indexes `ix_pac_flow_node_instance_process_instance` on `process_instance_id` and `ix_pac_flow_node_instance_process_version` on `(process_id, process_version)` |
 
 References to messages and process versions are stored as text: `EV-PERSON-REGISTERED@2` and `PER-REGISTRATION:1`
 (`StoredReferences`).
@@ -146,6 +150,7 @@ create table if not exists pac_flow_node_instance (
     outcome             varchar(500)                not null
 );
 
+create unique index if not exists uk_pac_flow_node_instance_sequence on pac_flow_node_instance (process_instance_id, sequence);
 create index if not exists ix_pac_flow_node_instance_process_instance on pac_flow_node_instance (process_instance_id);
 create index if not exists ix_pac_flow_node_instance_process_version on pac_flow_node_instance (process_id, process_version);
 create index if not exists ix_pac_process_instance_process_version on pac_process_instance (process_id, process_version);
@@ -154,12 +159,22 @@ create index if not exists ix_pac_process_instance_process_version on pac_proces
 There is no foreign key from `pac_flow_node_instance.process_instance_id` to `pac_process_instance.id`. You can add it
 in your migration if you want.
 
+The uniqueness of `(process_instance_id, sequence)` is an index (`create unique index if not exists`), not a table
+constraint, so that the script also adds it to tables created by earlier versions. If an existing database already
+had repeated positions (only possible if two steps of the same instance were recorded at the same time without a
+transaction), creating the index fails: clean up those rows first. With Flyway or Liquibase, add the index in a new
+migration.
+
 ### Transactions
 
 `ProcessJournal` is annotated with `@Transactional`. If the application has Spring Transaction and a transaction
 manager (the usual case with `spring-boot-starter-jdbc` or `-data-jpa`), each call joins the caller's transaction. The
 evidence and the business data commit or roll back together, also if your data goes through JPA. Without Spring
 Transaction the annotation is ignored.
+
+With a transaction, two concurrent steps of the same instance are serialised. Without one, the store still prevents
+them from leaving the same position repeated in the history: the second fails with
+`ProcessInstanceConflictException` and saves nothing.
 
 ## A custom store
 
@@ -182,25 +197,28 @@ The contract:
 | `instance(id)`, `instance(processId, correlationKey)` | return the stored instance, with its version |
 | `instances()`, `instances(correlationKey)` | return the instances, in any order |
 | `instances(processDefinitionRef)` | optional: the instances of a version of a process; by default it filters `instances()` |
-| `append(flowNodeInstance)` | append the evidence; it is never modified |
+| `append(flowNodeInstance)` | append the evidence, which is never modified; if the instance already has a record at that position (`sequence`), throw `ProcessInstanceConflictException.sequenceTaken(instanceId, sequence)` without saving anything |
 | `flowNodeInstances(processInstanceId)` | return the evidence of an instance, in any order |
 | `flowNodeInstances(processDefinitionRef)` | optional: the evidence of every instance of a version; by default it gathers that of each instance of `instances(processDefinitionRef)` |
 | `flowNodeInstanceCount(processInstanceId)` | optional: count the evidence without loading it |
+| `activeVersions()` | optional: the process versions with some active instance, sorted and without repetitions; by default computed with `instances()`. Used by the startup check (see [Retiring a version](versions.md#retiring-a-version)) |
 
 The optional methods are default methods of the interface, so a custom store works without them. The library's three
-stores answer the queries by version with a single query, backed by the indexes on `(process_id, process_version)`; a
-custom store with many instances should do the same, because the
+stores answer the queries by version with a single query, backed by the indexes on `(process_id, process_version)`, and
+`activeVersions()` with a `select distinct`; a custom store with many instances should do the same, because the
 [execution statistics](statistics-web.md#execution-statistics) use them.
 
-`ProcessInstanceRecord` and `FlowNodeInstanceRecord` are immutable records with everything that must be stored.
+`ProcessInstanceRecord` and `FlowNodeInstanceRecord` are immutable records with everything that must be stored. The
+outcome of each step takes at most `FlowNodeOutcome.MAX_LENGTH` (500) characters in its text form, the size of the
+`outcome` column.
 `StoredReferences` provides the text form of message and process references used by the library's stores, in case you
 want to store them the same way.
 
 ### Testing the store
 
 `ProcessInstanceStoreContract` checks the contract through the journal and the history (a complete process, one
-instance per process and correlation, nothing stored when a step is not conformant, optimistic locking). It is
-published in the library's test jar (classifier `tests`):
+instance per process and correlation, nothing stored when a step is not conformant, optimistic locking, each position of
+the history only once and the versions with active instances). It is published in the library's test jar (classifier `tests`):
 
 ```xml
 <dependency>
@@ -233,7 +251,7 @@ Spring context.
 | Exception | When |
 |---|---|
 | `DuplicateProcessInstanceException` (a `ProcessConformanceException`) | a second instance of the same process is started with the same correlation |
-| `ProcessInstanceConflictException` | two concurrent advances of the same instance: the second was based on a state that is no longer the stored one |
+| `ProcessInstanceConflictException` | two concurrent advances of the same instance: the second was based on a state that is no longer the stored one (`Process instance <id> changed after version <n> was read, or no longer exists`) or tried to record a position of the history that is already taken (`Flow node instance <n> of process instance <id> is already recorded: another step of the same instance was recorded concurrently`) |
 
 With messages that may arrive more than once, start with `journal.startProcessInstanceIfAbsent` (see
 [Transactions and idempotency](execution.md#transactions-and-idempotency)) or treat

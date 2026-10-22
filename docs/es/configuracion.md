@@ -27,6 +27,9 @@
 - Con JPA, `ProcessRuntimeAutoConfiguration` se aplica antes que la autoconfiguración JPA de Spring Boot y añade el
   paquete de sus entidades (`io.github.eldiegos.bpmncode.runtime.jpa`) a los paquetes de autoconfiguración, para que
   la unidad de persistencia de la aplicación las gestione.
+- `ProcessRuntimeAutoConfiguration` registra también una comprobación interna que, al arrancar, busca instancias
+  activas de versiones que ya no están desplegadas; su comportamiento lo fija `pac.process.store.undeployed-versions`
+  (véase [Retirar una versión](versiones.md#retirar-una-versión)).
 
 ### Dónde se buscan los procesos
 
@@ -55,6 +58,7 @@ pruebas.
 | `pac.process.bpmn.target-namespace` | `https://pac.dev/process` | `targetNamespace` de los BPMN exportados (sin barra final) |
 | `pac.process.store.type` | `auto` | almacén de instancias: `auto`, `memory`, `jdbc` o `jpa` |
 | `pac.process.store.initialize-schema` | `embedded` | creación de las tablas de los almacenes JDBC y JPA: `embedded` (solo H2), `always` o `never` |
+| `pac.process.store.undeployed-versions` | `warn` | qué hacer al arrancar si hay instancias activas de versiones que ya no están desplegadas: `warn` (avisa y arranca), `fail` (no arranca) o `ignore` (no lo comprueba) |
 | `pac.process.web.enabled` | `false` | publica el módulo web (visor y API de solo lectura) |
 | `pac.process.web.base-path` | `/bpmncode` | ruta del módulo web; empieza por `/` y no termina en `/` |
 | `pac.process.web.bpmn-js-location` | `/webjars/bpmn-js/18.10.1/dist` | carpeta `dist` de bpmn-js, que aporta la aplicación |

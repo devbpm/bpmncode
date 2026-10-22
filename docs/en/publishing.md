@@ -3,7 +3,8 @@
 > 🇪🇸 [Versión en español](../es/publicacion.md)
 
 `pom.xml` does not inherit from any POM: it imports the Spring Boot and Spring Modulith BOMs and carries the metadata
-Maven Central requires (license, `scm`, developer). The `release` profile adds:
+Maven Central requires (license, `scm` and `issueManagement` of the repository <https://github.com/devbpm/bpmncode>,
+developer). The `release` profile adds:
 
 - the sources and Javadoc jars;
 - the GPG signature;
@@ -12,7 +13,8 @@ Maven Central requires (license, `scm`, developer). The `release` profile adds:
 ## Preparation (once)
 
 1. **Namespace.** Sign in at <https://central.sonatype.com> with the GitHub account `eldiegos`. The namespace
-   `io.github.eldiegos` is verified automatically.
+   `io.github.eldiegos` is verified automatically. The `groupId` does not depend on where the repository lives: it
+   is still `io.github.eldiegos` although the code is in the `devbpm` organisation.
 2. **Token.** Generate a user token in the portal (*View Account → Generate User Token*) and store it in
    `~/.m2/settings.xml`:
 
@@ -70,4 +72,6 @@ without signing or uploading anything. The main jar carries `LICENSE` and `NOTIC
 (classifier `tests`) is built on every build, not only with `release`, and is published with the others: it carries
 `ProcessInstanceStoreContract` so applications can test their stores (see
 [Storage](storage.md#testing-the-store)), and `ProcessAssertions` with the OMG XSDs under `/bpmn/xsd` so they can test
-their diagrams and processes (see [Configuration](configuration.md#processassertions)).
+their diagrams and processes (see [Configuration](configuration.md#processassertions)). The
+`io.github.eldiegos.bpmncode.quality` package is excluded from the test jar, and the `release` profile does not run the
+SonarQube analysis: it is run separately with `./mvnw -Psonar verify` (see [Code quality](quality.md)).

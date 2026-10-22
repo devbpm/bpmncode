@@ -43,6 +43,7 @@ transaction; otherwise the annotation is ignored.
 
 Each call moves the token from the current node to the given node, and first checks that:
 
+- the instance's version is still deployed (see [Versions and running instances](#versions-and-running-instances));
 - the node exists in **the instance's version** (not the current one) and is of the type matching the method
   (`completeActivity` only accepts tasks, `reachEndEvent` only end events…), and that the overload with a message is
   used exactly when the node publishes one (message end event, send task), and the overload with an exception exactly
@@ -94,6 +95,10 @@ Credit checkCredit(ProcessInstanceRef instance, Order order) {
 	return journal.selectSequenceFlow(instance, "CHECK-CREDIT", credits.check(order));
 }
 ```
+
+Its text form (`CODE` or `CODE:detail`) takes at most `FlowNodeOutcome.MAX_LENGTH` (500) characters, what any store
+keeps. A longer one is rejected when it is created, the same with every store:
+`IllegalArgumentException: Outcome RULES_VIOLATED is 501 characters long; the evidence stores at most 500`.
 
 Outcomes are stored in the evidence, which must not carry personal data: use codes and references, and keep the data
 in your own tables.
@@ -169,6 +174,12 @@ Each instance stays bound to the version it started with and always advances acc
 a newer version is deployed. Whoever starts the process chooses the version (`ProcessDefinitionRef.of("ORDER", 2)`).
 See [Versions](versions.md).
 
+If the `@Process` class of a version that still has active instances is removed, those instances cannot advance:
+their next step throws `ProcessConformanceException` (`Process instance <id> runs ORDER v1, which is no longer
+deployed: keep the @Process class of every version that still has active instances`) and records nothing. They can
+still be queried: completed ones, as always; active ones, with an empty `nextFlowNodeIds()` (and `isWaitingAt`
+returns `false`). At startup, the library warns about those versions (see [Retiring a version](versions.md#retiring-a-version)).
+
 ## Transactions and idempotency
 
 - With a transactional store (JPA or JDBC, see [Storage](storage.md)), call the journal in the same transaction
@@ -179,6 +190,10 @@ See [Versions](versions.md).
   publication registry), start with `startProcessInstanceIfAbsent` (below) or treat that exception as a duplicate.
 - Instances use optimistic locking: if two concurrent advances of the same instance start from the same state, the
   second throws `ProcessInstanceConflictException` and saves nothing.
+- Each position of an instance's history is recorded only once. With a transaction, two concurrent steps of the same
+  instance are already serialised; without one, if both get to record the same position, the second throws
+  `ProcessInstanceConflictException` (`Flow node instance <n> of process instance <id> is already recorded: another
+  step of the same instance was recorded concurrently`) instead of duplicating it.
 
 `startProcessInstanceIfAbsent` makes a start idempotent: if there is already an instance of the process with that
 correlation it records nothing and returns `ProcessStart.AlreadyStarted` with the existing one (in any state, also
@@ -191,6 +206,22 @@ switch (journal.startProcessInstanceIfAbsent(KEY, message, FlowNodeOutcome.of("R
 	case ProcessStart.AlreadyStarted repeated -> log.info("Repeated delivery for {}", repeated.instance());
 }
 ```
+
+## What the journal guarantees
+
+`bpmncode` is a library: it records and checks what the application's code tells it, and policy decisions (when to
+call it, which transaction to use, what to do with a rejection) belong to the application.
+
+| Guarantees | Cannot guarantee |
+|---|---|
+| that what is recorded conforms to the model of the instance's version; otherwise it rejects it without recording anything | that the application's code calls the journal at every step: a step that is not reported leaves no evidence |
+| that what is recorded stays as append-only evidence, with each position of the history only once | atomicity between the instance's state, its history and your data without a transaction |
+
+- **Missing calls.** Test them with path tests: run each route of the process and compare the evidence with
+  `ProcessAssertions.pathOf(history, instanceId)` (see [`ProcessAssertions`](configuration.md#processassertions)).
+- **Atomicity.** It depends on a transaction. With Spring Boot and the JDBC or JPA stores there is one: the journal
+  joins the caller's (see [Transactions and idempotency](#transactions-and-idempotency)). The in-memory store is not
+  transactional: what a step that fails later already wrote (the instance's state, or your data) is not undone.
 
 ## Querying: `ProcessInstanceHistory`
 
@@ -209,7 +240,8 @@ For ready-made aggregates (heatmap, path of an instance, counts per version) use
 
 `ProcessInstanceSummary` is a sealed interface with two cases:
 
-- `Active`: has not reached an end event yet. It offers `waitingFlowNodeId()` and `nextFlowNodeIds()`.
+- `Active`: has not reached an end event yet. It offers `waitingFlowNodeId()` and `nextFlowNodeIds()` (empty if
+  its version is no longer deployed).
 - `Completed`: with an end date and, if it ended in a message end event, `publishedMessage()` (the messages of its send
   tasks do not count: they are in its evidence).
 

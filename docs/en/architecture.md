@@ -67,9 +67,14 @@ layout assigns layers from left to right (`LayerAssignment`), computes rectangle
 which holds the token and the state and checks each advance (`ProcessInstance.checkAdvance`) against the
 `ProcessDefinition` of its version. If the advance is valid, the journal saves the new state with optimistic locking
 and appends a `FlowNodeInstanceRecord`; otherwise it saves nothing. Reading always goes through
-`ProcessInstanceHistory`, which sorts and returns immutable records.
+`ProcessInstanceHistory`, which sorts and returns immutable records; an instance whose version is no longer deployed
+can still be read, without nodes to advance to. At startup, `UndeployedVersionsCheck` compares
+`ProcessInstanceStore#activeVersions()` with the definition registry according to
+`pac.process.store.undeployed-versions`.
 
-The store (`ProcessInstanceStore`) knows nothing about conformance: it only saves and reads. That way the same logic
+The store (`ProcessInstanceStore`) knows nothing about conformance: it only saves and reads, with the guarantees of its
+contract (one instance per process and correlation, optimistic locking and each position of the history only once).
+That way the same logic
 works in memory, with JDBC, with JPA or with an application store. The auto-configuration only loads the JDBC classes
 if `spring-jdbc` is on the classpath, and the JPA ones if JPA and `spring-orm` are. `JpaEntityPackageRegistrar` adds
 the `runtime.jpa` package to the auto-configuration packages, without loading any JPA class, so that the
@@ -99,6 +104,9 @@ every store must pass; `InMemoryProcessInstanceStoreTests` and `JdbcProcessInsta
 it is published in the test jar (classifier `tests`) for testing custom stores. `JpaProcessInstanceStoreTests` tests
 the JPA store with Hibernate and H2 in a Spring context, and `ProcessRuntimeAutoConfigurationTests` checks which store
 is chosen with and without a `DataSource`, without `spring-jdbc`, with a custom store and with
-`pac.process.store.type`. `ProcessExecutionStatisticsTests` tests the statistics and
+`pac.process.store.type`. `ProcessJournalRobustnessTests` tests retired versions with stored instances, the startup
+check and two concurrent steps without a transaction. `ProcessExecutionStatisticsTests` tests the statistics and
 `ProcessWebAutoConfigurationTests` when the web module is enabled and its routes. The test jar also carries
 `ProcessAssertions` and the OMG XSDs, for the applications' tests (see [Configuration](configuration.md#processassertions)).
+Coverage with JaCoCo and the SonarQube analysis (`SonarQubeAnalysisIT`, `sonar` profile, outside the test jar) are
+described in [Code quality](quality.md).
