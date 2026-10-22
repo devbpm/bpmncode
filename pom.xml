@@ -13,7 +13,7 @@
 	<description>Framework code-first de procesos BPMN 2.0 reutilizable por cualquier aplicación Spring Boot: anotaciones con el
 		vocabulario de BPMN, lectura y validación del modelo, registro de definiciones, journal de instancias con conformidad,
 		trazabilidad y exportación BPMN 2.0 XML. No contiene ningún proceso de negocio.</description>
-	<url>https://github.com/eldiegos/bpmncode</url>
+	<url>https://github.com/devbpm/bpmncode</url>
 	<inceptionYear>2026</inceptionYear>
 
 	<licenses>
@@ -33,15 +33,15 @@
 	</developers>
 
 	<scm>
-		<connection>scm:git:https://github.com/eldiegos/bpmncode.git</connection>
-		<developerConnection>scm:git:ssh://git@github.com/eldiegos/bpmncode.git</developerConnection>
-		<url>https://github.com/eldiegos/bpmncode</url>
+		<connection>scm:git:https://github.com/devbpm/bpmncode.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/devbpm/bpmncode.git</developerConnection>
+		<url>https://github.com/devbpm/bpmncode</url>
 		<tag>HEAD</tag>
 	</scm>
 
 	<issueManagement>
 		<system>GitHub</system>
-		<url>https://github.com/eldiegos/bpmncode/issues</url>
+		<url>https://github.com/devbpm/bpmncode/issues</url>
 	</issueManagement>
 
 	<properties>
@@ -71,6 +71,15 @@
 		<maven-javadoc-plugin.version>3.12.0</maven-javadoc-plugin.version>
 		<maven-gpg-plugin.version>3.2.8</maven-gpg-plugin.version>
 		<central-publishing-maven-plugin.version>0.11.1</central-publishing-maven-plugin.version>
+		<maven-failsafe-plugin.version>3.5.6</maven-failsafe-plugin.version>
+		<jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
+		<sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
+
+		<!-- Calidad: análisis con SonarQube en un contenedor (./mvnw -Psonar verify, véase docs/es/calidad.md) -->
+		<sonar.projectKey>${project.artifactId}</sonar.projectKey>
+		<sonarqube.image>sonarqube:community</sonarqube.image>
+		<!-- Minutos que SonarQube sigue abierto tras el análisis para verlo en el navegador (0: se cierra al terminar) -->
+		<sonar.keepOpenMinutes>0</sonar.keepOpenMinutes>
 	</properties>
 
 	<!-- Versiones de los BOM; la aplicación que use la librería puede imponer las suyas -->
@@ -173,6 +182,12 @@
 			<artifactId>h2</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Test: SonarQube en un contenedor para el análisis de calidad (perfil sonar) -->
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -248,6 +263,21 @@
 					<artifactId>central-publishing-maven-plugin</artifactId>
 					<version>${central-publishing-maven-plugin.version}</version>
 				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-failsafe-plugin</artifactId>
+					<version>${maven-failsafe-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>${jacoco-maven-plugin.version}</version>
+				</plugin>
+				<plugin>
+					<groupId>org.sonarsource.scanner.maven</groupId>
+					<artifactId>sonar-maven-plugin</artifactId>
+					<version>${sonar-maven-plugin.version}</version>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 
@@ -279,6 +309,32 @@
 						<goals>
 							<goal>test-jar</goal>
 						</goals>
+						<configuration>
+							<!-- El análisis de calidad es del proyecto, no de quien usa la librería -->
+							<excludes>
+								<exclude>io/github/eldiegos/bpmncode/quality/**</exclude>
+							</excludes>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Cobertura de los tests: target/site/jacoco (jacoco.xml para SonarQube) antes de empaquetar -->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>prepare-agent</id>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>report</id>
+						<phase>prepare-package</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
 					</execution>
 				</executions>
 			</plugin>
@@ -286,7 +342,39 @@
 	</build>
 
 	<profiles>
-		<!-- Publicación en Maven Central: ./mvnw -Prelease deploy (véase docs/publicacion.md) -->
+		<!-- Análisis de calidad: ./mvnw -Psonar verify arranca SonarQube en un contenedor, analiza y deja el informe en target/sonar -->
+		<profile>
+			<id>sonar</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-failsafe-plugin</artifactId>
+						<configuration>
+							<includes>
+								<include>io/github/eldiegos/bpmncode/quality/*IT.java</include>
+							</includes>
+							<systemPropertyVariables>
+								<sonarqube.image>${sonarqube.image}</sonarqube.image>
+								<sonar.projectKey>${sonar.projectKey}</sonar.projectKey>
+								<sonar-maven-plugin.version>${sonar-maven-plugin.version}</sonar-maven-plugin.version>
+								<project.basedir>${project.basedir}</project.basedir>
+								<sonar.keepOpenMinutes>${sonar.keepOpenMinutes}</sonar.keepOpenMinutes>
+							</systemPropertyVariables>
+						</configuration>
+						<executions>
+							<execution>
+								<goals>
+									<goal>integration-test</goal>
+									<goal>verify</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<!-- Publicación en Maven Central: ./mvnw -Prelease deploy (véase docs/es/publicacion.md) -->
 		<profile>
 			<id>release</id>
 			<build>

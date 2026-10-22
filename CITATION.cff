@@ -6,8 +6,8 @@ type: software
 authors:
   - alias: eldiegos
 license: Apache-2.0
-repository-code: "https://github.com/eldiegos/bpmncode"
-url: "https://github.com/eldiegos/bpmncode"
+repository-code: "https://github.com/devbpm/bpmncode"
+url: "https://github.com/devbpm/bpmncode"
 keywords:
   - bpmn
   - spring-boot
