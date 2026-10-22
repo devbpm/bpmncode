@@ -113,13 +113,13 @@ public class JpaProcessInstanceStore implements ProcessInstanceStore {
 				+ " and i.correlationKey = :correlationKey", ProcessInstanceEntity.class)
 				.setParameter("processId", processId)
 				.setParameter("correlationKey", correlationKey.value())
-				.getResultStream().findFirst().map(JpaProcessInstanceStore::instanceRecord);
+				.getResultList().stream().findFirst().map(JpaProcessInstanceStore::instanceRecord);
 	}
 
 	@Override
 	public List<ProcessInstanceRecord> instances() {
 		return entityManager.createQuery("select i from ProcessInstanceEntity i", ProcessInstanceEntity.class)
-				.getResultStream().map(JpaProcessInstanceStore::instanceRecord).toList();
+				.getResultList().stream().map(JpaProcessInstanceStore::instanceRecord).toList();
 	}
 
 	@Override
@@ -127,7 +127,7 @@ public class JpaProcessInstanceStore implements ProcessInstanceStore {
 		return entityManager.createQuery("select i from ProcessInstanceEntity i where i.correlationKey = :correlationKey",
 				ProcessInstanceEntity.class)
 				.setParameter("correlationKey", correlationKey.value())
-				.getResultStream().map(JpaProcessInstanceStore::instanceRecord).toList();
+				.getResultList().stream().map(JpaProcessInstanceStore::instanceRecord).toList();
 	}
 
 	@Override
@@ -136,11 +136,28 @@ public class JpaProcessInstanceStore implements ProcessInstanceStore {
 				+ " and i.processVersion = :version", ProcessInstanceEntity.class)
 				.setParameter("processId", process.processId())
 				.setParameter("version", process.version())
-				.getResultStream().map(JpaProcessInstanceStore::instanceRecord).toList();
+				.getResultList().stream().map(JpaProcessInstanceStore::instanceRecord).toList();
+	}
+
+	@Override
+	public List<ProcessDefinitionRef> activeVersions() {
+		return entityManager.createQuery("select distinct i.processId, i.processVersion from ProcessInstanceEntity i"
+				+ " where i.state = :state order by i.processId, i.processVersion", Object[].class)
+				.setParameter("state", ProcessInstanceState.ACTIVE.name())
+				.getResultList().stream()
+				.map(row -> ProcessDefinitionRef.of((String) row[0], (Integer) row[1])).toList();
 	}
 
 	@Override
 	public void append(FlowNodeInstanceRecord record) {
+		// Igual que insert: se comprueba antes y la restricción única lo garantiza si dos pasos llegan a la vez.
+		var taken = entityManager.createQuery("select count(f) from FlowNodeInstanceEntity f"
+				+ " where f.processInstanceId = :instance and f.sequence = :sequence", Long.class)
+				.setParameter("instance", record.processInstanceId()).setParameter("sequence", record.sequence())
+				.getSingleResult();
+		if (taken > 0) {
+			throw ProcessInstanceConflictException.sequenceTaken(record.processInstanceId(), record.sequence());
+		}
 		var entity = new FlowNodeInstanceEntity();
 		entity.id = record.id();
 		entity.processInstanceId = record.processInstanceId();
@@ -162,7 +179,7 @@ public class JpaProcessInstanceStore implements ProcessInstanceStore {
 		return entityManager.createQuery("select f from FlowNodeInstanceEntity f where f.processInstanceId = :instance",
 				FlowNodeInstanceEntity.class)
 				.setParameter("instance", processInstanceId)
-				.getResultStream().map(JpaProcessInstanceStore::flowNodeRecord).toList();
+				.getResultList().stream().map(JpaProcessInstanceStore::flowNodeRecord).toList();
 	}
 
 	@Override
@@ -171,7 +188,7 @@ public class JpaProcessInstanceStore implements ProcessInstanceStore {
 				+ " and f.processVersion = :version", FlowNodeInstanceEntity.class)
 				.setParameter("processId", process.processId())
 				.setParameter("version", process.version())
-				.getResultStream().map(JpaProcessInstanceStore::flowNodeRecord).toList();
+				.getResultList().stream().map(JpaProcessInstanceStore::flowNodeRecord).toList();
 	}
 
 	@Override

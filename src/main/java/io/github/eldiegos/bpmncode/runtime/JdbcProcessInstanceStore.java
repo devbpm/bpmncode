@@ -131,13 +131,28 @@ public class JdbcProcessInstanceStore implements ProcessInstanceStore {
 	}
 
 	@Override
+	public List<ProcessDefinitionRef> activeVersions() {
+		return jdbc.sql("select distinct process_id, process_version from pac_process_instance where state = ?"
+				+ " order by process_id, process_version")
+				.param(ProcessInstanceState.ACTIVE.name())
+				.query((row, number) -> ProcessDefinitionRef.of(row.getString("process_id"), row.getInt("process_version")))
+				.list();
+	}
+
+	@Override
 	public void append(FlowNodeInstanceRecord record) {
-		jdbc.sql("insert into pac_flow_node_instance (" + FLOW_NODE_COLUMNS + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-				.params(record.id(), record.processInstanceId(), record.sequence(), record.processId(),
-						record.processVersion(), record.correlationKey().value(), record.businessKey().orElse(null),
-						record.flowNodeId(), record.elementType().name(), record.loopCounter(), timestamp(record.occurredAt()),
-						record.outcome().toString())
-				.update();
+		try {
+			jdbc.sql("insert into pac_flow_node_instance (" + FLOW_NODE_COLUMNS + ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+					.params(record.id(), record.processInstanceId(), record.sequence(), record.processId(),
+							record.processVersion(), record.correlationKey().value(), record.businessKey().orElse(null),
+							record.flowNodeId(), record.elementType().name(), record.loopCounter(),
+							timestamp(record.occurredAt()), record.outcome().toString())
+					.update();
+		}
+		catch (DuplicateKeyException e) {
+			// La restricción uk_pac_flow_node_instance_sequence: otro paso de la misma instancia ocupó la posición.
+			throw ProcessInstanceConflictException.sequenceTaken(record.processInstanceId(), record.sequence());
+		}
 	}
 
 	@Override
@@ -154,8 +169,9 @@ public class JdbcProcessInstanceStore implements ProcessInstanceStore {
 
 	@Override
 	public int flowNodeInstanceCount(UUID processInstanceId) {
-		return jdbc.sql("select count(*) from pac_flow_node_instance where process_instance_id = ?")
+		Integer count = jdbc.sql("select count(*) from pac_flow_node_instance where process_instance_id = ?")
 				.param(processInstanceId).query(Integer.class).single();
+		return count == null ? 0 : count;
 	}
 
 	private static Map<String, Object> parameters(ProcessInstanceRecord instance) {

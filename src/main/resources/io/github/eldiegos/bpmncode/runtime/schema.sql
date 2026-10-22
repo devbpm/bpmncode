@@ -39,6 +39,9 @@ create table if not exists pac_flow_node_instance (
     outcome             varchar(500)                not null
 );
 
+-- Cada posición del historial de una instancia se registra una sola vez (también en tablas creadas por versiones
+-- anteriores del script, por eso es un índice y no una restricción de la tabla).
+create unique index if not exists uk_pac_flow_node_instance_sequence on pac_flow_node_instance (process_instance_id, sequence);
 create index if not exists ix_pac_flow_node_instance_process_instance on pac_flow_node_instance (process_instance_id);
 create index if not exists ix_pac_flow_node_instance_process_version on pac_flow_node_instance (process_id, process_version);
 create index if not exists ix_pac_process_instance_process_version on pac_process_instance (process_id, process_version);

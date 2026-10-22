@@ -25,13 +25,13 @@ import org.w3c.dom.Element;
  */
 final class BpmnDocument {
 
-	static final String BPMN = "http://www.omg.org/spec/BPMN/20100524/MODEL";
-	static final String BPMNDI = "http://www.omg.org/spec/BPMN/20100524/DI";
-	static final String DC = "http://www.omg.org/spec/DD/20100524/DC";
-	static final String DI = "http://www.omg.org/spec/DD/20100524/DI";
+	static final String BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL";
+	static final String BPMNDI_NS = "http://www.omg.org/spec/BPMN/20100524/DI";
+	static final String DC_NS = "http://www.omg.org/spec/DD/20100524/DC";
+	static final String DI_NS = "http://www.omg.org/spec/DD/20100524/DI";
 
 	/** Espacio de nombres de las extensiones del framework: lo que BPMN no define (versión, código, reglas, rama). */
-	static final String PAC = "https://pac.dev/schema/bpmn";
+	static final String PAC_NS = "https://pac.dev/schema/bpmn";
 
 	private final Document document;
 	private final Element definitions;
@@ -56,13 +56,13 @@ final class BpmnDocument {
 			factory.setNamespaceAware(true);
 			var document = factory.newDocumentBuilder().newDocument();
 			document.setXmlStandalone(true);
-			var definitions = document.createElementNS(BPMN, "bpmn:definitions");
+			var definitions = document.createElementNS(BPMN_NS, "bpmn:definitions");
 			document.appendChild(definitions);
-			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:bpmn", BPMN);
-			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:bpmndi", BPMNDI);
-			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:dc", DC);
-			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:di", DI);
-			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:pac", PAC);
+			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:bpmn", BPMN_NS);
+			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:bpmndi", BPMNDI_NS);
+			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:dc", DC_NS);
+			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:di", DI_NS);
+			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:pac", PAC_NS);
 			definitions.setAttributeNS(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "xmlns:xsi",
 					XMLConstants.W3C_XML_SCHEMA_INSTANCE_NS_URI);
 			definitions.setAttribute("id", "Definitions_" + diagramId);
@@ -82,19 +82,19 @@ final class BpmnDocument {
 	}
 
 	Element bpmn(String localName) {
-		return document.createElementNS(BPMN, "bpmn:" + localName);
+		return document.createElementNS(BPMN_NS, "bpmn:" + localName);
 	}
 
 	Element bpmndi(String localName) {
-		return document.createElementNS(BPMNDI, "bpmndi:" + localName);
+		return document.createElementNS(BPMNDI_NS, "bpmndi:" + localName);
 	}
 
 	Element dc(String localName) {
-		return document.createElementNS(DC, "dc:" + localName);
+		return document.createElementNS(DC_NS, "dc:" + localName);
 	}
 
 	Element di(String localName) {
-		return document.createElementNS(DI, "di:" + localName);
+		return document.createElementNS(DI_NS, "di:" + localName);
 	}
 
 	/** Añade a {@code parent} un hijo BPMN con texto. */
@@ -116,7 +116,7 @@ final class BpmnDocument {
 
 	/** Pone un atributo de la extensión {@code pac:}, permitido en cualquier elemento BPMN. */
 	void setExtensionAttribute(Element element, String localName, String value) {
-		element.setAttributeNS(PAC, "pac:" + localName, value);
+		element.setAttributeNS(PAC_NS, "pac:" + localName, value);
 	}
 
 	/**
@@ -129,14 +129,14 @@ final class BpmnDocument {
 	 */
 	Element appendExtension(Element parent, String localName) {
 		var extensions = extensionElements(parent);
-		var extension = document.createElementNS(PAC, "pac:" + localName);
+		var extension = document.createElementNS(PAC_NS, "pac:" + localName);
 		extensions.appendChild(extension);
 		return extension;
 	}
 
 	private Element extensionElements(Element parent) {
 		for (var child = parent.getFirstChild(); child != null; child = child.getNextSibling()) {
-			if (child instanceof Element element && BPMN.equals(element.getNamespaceURI())
+			if (child instanceof Element element && BPMN_NS.equals(element.getNamespaceURI())
 					&& "extensionElements".equals(element.getLocalName())) {
 				return element;
 			}
@@ -161,7 +161,11 @@ final class BpmnDocument {
 	 */
 	String serialize() {
 		try {
-			var transformer = TransformerFactory.newInstance().newTransformer();
+			// Solo serializa un documento propio, pero sin acceso a DTD ni hojas de estilo externas (XXE).
+			var factory = TransformerFactory.newInstance();
+			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+			factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+			var transformer = factory.newTransformer();
 			transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
 			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 			transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");

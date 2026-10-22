@@ -123,9 +123,10 @@ final class ModelDiagnostics {
 			bpmnIds.put(id, claim);
 			return true;
 		}
-		var otherVersionOfSameProcess = existing.owner().isPresent() && claim.owner().isPresent()
-				&& existing.owner().get().processId().equals(claim.owner().get().processId())
-				&& existing.owner().get().version() != claim.owner().get().version();
+		var otherVersionOfSameProcess = existing.owner()
+				.flatMap(owner -> claim.owner().filter(other -> owner.processId().equals(other.processId())
+						&& owner.version() != other.version()))
+				.isPresent();
 		if (!otherVersionOfSameProcess) {
 			report(ViolationKind.DUPLICATE_ID, claim.location(),
 					"identifier " + id + " is already declared at " + existing.location());

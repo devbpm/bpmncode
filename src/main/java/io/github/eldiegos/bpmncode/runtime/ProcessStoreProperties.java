@@ -13,11 +13,14 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  *
  * @param type almacén ({@code pac.process.store.type})
  * @param initializeSchema creación de las tablas de los almacenes JDBC y JPA ({@code pac.process.store.initialize-schema})
+ * @param undeployedVersions qué hacer al arrancar si hay instancias activas de versiones que ya no están desplegadas
+ *        ({@code pac.process.store.undeployed-versions})
  * @see ProcessRuntimeAutoConfiguration
  */
 @ConfigurationProperties("pac.process.store")
 public record ProcessStoreProperties(@DefaultValue("auto") Type type,
-		@DefaultValue("embedded") SchemaInitialization initializeSchema) {
+		@DefaultValue("embedded") SchemaInitialization initializeSchema,
+		@DefaultValue("warn") UndeployedVersions undeployedVersions) {
 
 	/**
 	 * Almacén de instancias.
@@ -54,5 +57,22 @@ public record ProcessStoreProperties(@DefaultValue("auto") Type type,
 		ALWAYS,
 		/** Nunca: las tablas las crea la aplicación (Flyway, Liquibase…). */
 		NEVER
+	}
+
+	/**
+	 * Qué hacer al arrancar con las instancias activas de versiones de proceso que ya no están desplegadas: no pueden
+	 * avanzar hasta que vuelva a desplegarse su clase {@code @Process}.
+	 * <p>
+	 * Responsabilidad: nombrar las opciones de {@code pac.process.store.undeployed-versions}.
+	 * <p>
+	 * Invariantes: por defecto la librería solo avisa; decidir si eso impide arrancar es cosa de la aplicación.
+	 */
+	public enum UndeployedVersions {
+		/** Registrar un aviso con las versiones afectadas y arrancar. */
+		WARN,
+		/** No arrancar. */
+		FAIL,
+		/** No comprobarlo (p. ej. si la aplicación lo vigila por su cuenta). */
+		IGNORE
 	}
 }

@@ -72,7 +72,12 @@ public final class InMemoryProcessInstanceStore implements ProcessInstanceStore 
 
 	@Override
 	public synchronized void append(FlowNodeInstanceRecord flowNodeInstance) {
-		flowNodeInstances.computeIfAbsent(flowNodeInstance.processInstanceId(), id -> new ArrayList<>()).add(flowNodeInstance);
+		var recorded = flowNodeInstances.computeIfAbsent(flowNodeInstance.processInstanceId(), id -> new ArrayList<>());
+		if (recorded.stream().anyMatch(record -> record.sequence() == flowNodeInstance.sequence())) {
+			throw ProcessInstanceConflictException.sequenceTaken(flowNodeInstance.processInstanceId(),
+					flowNodeInstance.sequence());
+		}
+		recorded.add(flowNodeInstance);
 	}
 
 	@Override

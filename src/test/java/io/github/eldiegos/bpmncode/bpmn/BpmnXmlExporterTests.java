@@ -37,9 +37,9 @@ import fixture.process.VersionedMessages;
  */
 class BpmnXmlExporterTests {
 
-	static final String BPMN = BpmnDocument.BPMN;
-	static final String BPMNDI = BpmnDocument.BPMNDI;
-	static final String DI = BpmnDocument.DI;
+	static final String BPMN = BpmnDocument.BPMN_NS;
+	static final String BPMNDI = BpmnDocument.BPMNDI_NS;
+	static final String DI = BpmnDocument.DI_NS;
 
 	private static final Definitions DEFINITIONS = AnnotationProcessModelReader.read(List.of(ValidProcesses.OrderV1.class,
 			ValidProcesses.CreditRule.class, ValidProcesses.OrderAccepted.class, ValidProcesses.Shipping.class,
@@ -105,7 +105,7 @@ class BpmnXmlExporterTests {
 		var sendTask = byId(document, "FX-REQUEST-INVOICE");
 		assertThat(sendTask.getLocalName()).isEqualTo("sendTask");
 		assertThat(sendTask.getAttribute("messageRef")).isEqualTo("Message_FX-EV-INVOICE-REQUESTED");
-		assertThat(sendTask.getAttributeNS(BpmnDocument.PAC, "version")).isEqualTo("1");
+		assertThat(sendTask.getAttributeNS(BpmnDocument.PAC_NS, "version")).isEqualTo("1");
 		assertThat(elements(sendTask, BPMN, "messageEventDefinition")).isEmpty();
 		assertThat(byId(document, "Message_FX-EV-INVOICE-REQUESTED").getLocalName()).isEqualTo("message");
 		var messageFlow = byId(document, "MessageFlow_FX-REQUEST-INVOICE_FX-INV-START");
@@ -170,7 +170,7 @@ class BpmnXmlExporterTests {
 		validateAgainstBpmnSchema(xml);
 		var document = parse(xml);
 
-		var versions = elements(byId(document, "Message_FX-EV-PAID"), BpmnDocument.PAC, "messageVersion");
+		var versions = elements(byId(document, "Message_FX-EV-PAID"), BpmnDocument.PAC_NS, "messageVersion");
 		assertThat(versions).extracting(version -> version.getAttribute("version")).containsExactly("1", "2");
 		assertThat(versions).extracting(version -> version.getAttribute("schemaHash"))
 				.containsExactly(definitions.message("FX-EV-PAID").orElseThrow().versions().stream()
@@ -178,11 +178,11 @@ class BpmnXmlExporterTests {
 		assertThat(byId(document, "ItemDefinition_FX-EV-PAID_v2").getAttribute("structureRef"))
 				.isEqualTo(VersionedMessages.PaymentReceivedV2.class.getCanonicalName());
 		// Se muestra la versión vigente del cobro (v2), que publica la versión 2 del mensaje.
-		assertThat(byId(document, "MessageFlow_FX-PAID_FX-FUL-START").getAttributeNS(BpmnDocument.PAC, "version")).isEqualTo("2");
+		assertThat(byId(document, "MessageFlow_FX-PAID_FX-FUL-START").getAttributeNS(BpmnDocument.PAC_NS, "version")).isEqualTo("2");
 		assertThat(elements(byId(document, "FX-PAID"), BPMN, "messageEventDefinition").getFirst()
-				.getAttributeNS(BpmnDocument.PAC, "version")).isEqualTo("2");
+				.getAttributeNS(BpmnDocument.PAC_NS, "version")).isEqualTo("2");
 		assertThat(elements(byId(document, "FX-FUL-START"), BPMN, "messageEventDefinition").getFirst()
-				.getAttributeNS(BpmnDocument.PAC, "acceptedVersions")).isEqualTo("1 2");
+				.getAttributeNS(BpmnDocument.PAC_NS, "acceptedVersions")).isEqualTo("1 2");
 	}
 
 	@Test
@@ -194,13 +194,13 @@ class BpmnXmlExporterTests {
 		validateAgainstBpmnSchema(xml);
 		var document = parse(xml);
 
-		var loop = (Element) byId(document, "DOC-UPLOAD").getElementsByTagNameNS(BpmnDocument.BPMN,
+		var loop = (Element) byId(document, "DOC-UPLOAD").getElementsByTagNameNS(BpmnDocument.BPMN_NS,
 				"standardLoopCharacteristics").item(0);
 		assertThat(loop.getAttribute("testBefore")).isEqualTo("false");
 		assertThat(loop.getAttribute("loopMaximum")).isEqualTo("3");
 		assertThat(loop.getTextContent().strip()).isEqualTo("Algún documento no se lee");
 		assertThat(byId(document, "Flow_DOC-COMPLETE_DOC-UPLOAD").getAttribute("targetRef")).isEqualTo("DOC-UPLOAD");
-		assertThat(byId(document, "Flow_DOC-COMPLETE_DOC-UPLOAD").getAttributeNS(BpmnDocument.PAC, "when"))
+		assertThat(byId(document, "Flow_DOC-COMPLETE_DOC-UPLOAD").getAttributeNS(BpmnDocument.PAC_NS, "when"))
 				.isEqualTo("INCOMPLETE");
 	}
 
@@ -211,18 +211,18 @@ class BpmnXmlExporterTests {
 
 		var nightly = BpmnXmlExporter.export(definitions, new BpmnDiagram.ProcessDiagram("FX-NIGHTLY"));
 		validateAgainstBpmnSchema(nightly);
-		var cron = (Element) byId(parse(nightly), "NIG-START").getElementsByTagNameNS(BpmnDocument.BPMN,
+		var cron = (Element) byId(parse(nightly), "NIG-START").getElementsByTagNameNS(BpmnDocument.BPMN_NS,
 				"timerEventDefinition").item(0);
-		assertThat(cron.getAttributeNS(BpmnDocument.PAC, "schedule")).isEqualTo("cron");
-		assertThat(cron.getAttributeNS(BpmnDocument.PAC, "zone")).isEqualTo("Europe/Madrid");
+		assertThat(cron.getAttributeNS(BpmnDocument.PAC_NS, "schedule")).isEqualTo("cron");
+		assertThat(cron.getAttributeNS(BpmnDocument.PAC_NS, "zone")).isEqualTo("Europe/Madrid");
 		assertThat(cron.getTextContent().strip()).isEqualTo("0 0 2 * * *");
 
 		var polling = BpmnXmlExporter.export(definitions, new BpmnDiagram.ProcessDiagram("FX-POLLING"));
 		validateAgainstBpmnSchema(polling);
-		var rate = (Element) byId(parse(polling), "POL-START").getElementsByTagNameNS(BpmnDocument.BPMN,
+		var rate = (Element) byId(parse(polling), "POL-START").getElementsByTagNameNS(BpmnDocument.BPMN_NS,
 				"timerEventDefinition").item(0);
-		assertThat(rate.getAttributeNS(BpmnDocument.PAC, "schedule")).isEqualTo("fixedRate");
-		assertThat(rate.getAttributeNS(BpmnDocument.PAC, "initialDelay")).isEqualTo("PT30S");
+		assertThat(rate.getAttributeNS(BpmnDocument.PAC_NS, "schedule")).isEqualTo("fixedRate");
+		assertThat(rate.getAttributeNS(BpmnDocument.PAC_NS, "initialDelay")).isEqualTo("PT30S");
 		assertThat(rate.getTextContent().strip()).isEqualTo("R/PT5M");
 	}
 
@@ -253,8 +253,8 @@ class BpmnXmlExporterTests {
 		assertThat(byId(v2, "Flow_FX-CREATE_FX-NOTIFY").getAttribute("targetRef")).isEqualTo("FX-NOTIFY");
 		assertThat(byId(v2, "Flow_FX-NOTIFY_FX-DONE").getAttribute("targetRef")).isEqualTo("FX-DONE");
 		assertThat(v2.getElementById("Flow_FX-CREATE_FX-DONE")).isNull();
-		assertThat(byId(v2, "Participant_FX-ORDER").getAttributeNS(BpmnDocument.PAC, "version")).isEqualTo("2");
-		assertThat(byId(v2, "FX-ORDER").getAttributeNS(BpmnDocument.PAC, "version")).isEqualTo("2");
+		assertThat(byId(v2, "Participant_FX-ORDER").getAttributeNS(BpmnDocument.PAC_NS, "version")).isEqualTo("2");
+		assertThat(byId(v2, "FX-ORDER").getAttributeNS(BpmnDocument.PAC_NS, "version")).isEqualTo("2");
 	}
 
 	@Test
@@ -267,7 +267,7 @@ class BpmnXmlExporterTests {
 		var document = parse(xml);
 		assertThat(byId(document, "Participant_FX-ORDER").getAttribute("name")).isEqualTo("Pedido");
 		assertThat(byId(document, "FX-CHECK").getAttribute("name")).isEqualTo("Comprobar crédito");
-		assertThat(((Element) byId(document, "FX-CHECK").getElementsByTagNameNS(BpmnDocument.PAC, "businessRuleRef").item(0))
+		assertThat(((Element) byId(document, "FX-CHECK").getElementsByTagNameNS(BpmnDocument.PAC_NS, "businessRuleRef").item(0))
 				.getAttribute("name")).isEqualTo("Límite de crédito");
 		assertThat(byId(document, "Flow_FX-DECIDE_FX-CREATE").getAttribute("name")).isEqualTo("Sí");
 		// Sin traducción se usa el nombre canónico de la anotación.

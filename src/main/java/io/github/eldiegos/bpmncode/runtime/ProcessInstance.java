@@ -258,15 +258,17 @@ final class ProcessInstance {
 	/**
 	 * Construye el modelo de lectura de la instancia.
 	 *
-	 * @param definition definición de la versión de la instancia
+	 * @param definition definición de la versión de la instancia, o vacía si esa versión ya no está desplegada: la
+	 *        instancia se sigue mostrando, pero sin nodos a los que pueda avanzar
 	 * @param flowNodeNames nombre canónico de cada nodo de flujo
 	 * @return la instancia activa o completada
 	 */
-	ProcessInstanceSummary toSummary(ProcessDefinition definition, Function<String, String> flowNodeNames) {
+	ProcessInstanceSummary toSummary(Optional<ProcessDefinition> definition, Function<String, String> flowNodeNames) {
 		var flowNodeName = flowNodeNames.apply(currentFlowNodeId);
 		return switch (state) {
 			case ACTIVE -> new ProcessInstanceSummary.Active(id, processId, processVersion, correlationKey,
-					businessKey, currentFlowNodeId, flowNodeName, startedAt, triggeringMessage, nextFlowNodeIds(definition));
+					businessKey, currentFlowNodeId, flowNodeName, startedAt, triggeringMessage,
+					definition.map(this::nextFlowNodeIds).orElse(List.of()));
 			case COMPLETED -> new ProcessInstanceSummary.Completed(id, processId, processVersion, correlationKey,
 					businessKey, currentFlowNodeId, flowNodeName, startedAt, triggeringMessage, endedAt.orElseThrow(),
 					publishedMessage);

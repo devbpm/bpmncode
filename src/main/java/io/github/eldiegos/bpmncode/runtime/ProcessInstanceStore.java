@@ -85,9 +85,11 @@ public interface ProcessInstanceStore {
 	}
 
 	/**
-	 * Añade la evidencia de un nodo de flujo.
+	 * Añade la evidencia de un nodo de flujo. Cada posición ({@code sequence}) de una instancia se registra una sola vez:
+	 * así, dos pasos concurrentes de la misma instancia no pueden dejar el historial con la misma posición repetida.
 	 *
 	 * @param flowNodeInstance evidencia
+	 * @throws ProcessInstanceConflictException si la instancia ya tiene un registro en esa posición (sin guardar nada)
 	 */
 	void append(FlowNodeInstanceRecord flowNodeInstance);
 
@@ -109,6 +111,18 @@ public interface ProcessInstanceStore {
 	 */
 	default List<FlowNodeInstanceRecord> flowNodeInstances(ProcessDefinitionRef process) {
 		return instances(process).stream().flatMap(instance -> flowNodeInstances(instance.id()).stream()).toList();
+	}
+
+	/**
+	 * Devuelve las versiones de proceso que tienen alguna instancia activa, para comprobar al arrancar que todas siguen
+	 * desplegadas sin leer las instancias una a una.
+	 *
+	 * @return las versiones, ordenadas y sin repetir; por defecto se calculan con {@link #instances()}, y los almacenes
+	 *         con base de datos lo resuelven con una consulta
+	 */
+	default List<ProcessDefinitionRef> activeVersions() {
+		return instances().stream().filter(instance -> instance.state() == ProcessInstanceState.ACTIVE)
+				.map(ProcessInstanceRecord::ref).distinct().sorted().toList();
 	}
 
 	/**

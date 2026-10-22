@@ -32,12 +32,12 @@ class ViewerPageController {
 	static final String TEMPLATE = "io/github/eldiegos/bpmncode/web/viewer.html";
 
 	private final ProcessWebProperties properties;
-	private final String template;
+	private final String html;
 
 	ViewerPageController(ProcessWebProperties properties) {
 		this.properties = properties;
 		try {
-			this.template = new ClassPathResource(TEMPLATE, getClass().getClassLoader())
+			this.html = new ClassPathResource(TEMPLATE, getClass().getClassLoader())
 					.getContentAsString(StandardCharsets.UTF_8);
 		}
 		catch (IOException unreadable) {
@@ -51,7 +51,7 @@ class ViewerPageController {
 		var base = context + properties.basePath();
 		var bpmnJs = properties.bpmnJsLocation().startsWith("/") ? context + properties.bpmnJsLocation()
 				: properties.bpmnJsLocation();
-		var page = template
+		var page = html
 				.replace("{{lang}}", HtmlUtils.htmlEscape(WebLocale.of(lang, locale).getLanguage()))
 				.replace("{{api}}", HtmlUtils.htmlEscape(base + "/api"))
 				.replace("{{static}}", HtmlUtils.htmlEscape(base + "/static"))

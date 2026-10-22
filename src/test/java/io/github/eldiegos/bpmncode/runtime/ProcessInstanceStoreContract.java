@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
@@ -115,6 +116,39 @@ public abstract class ProcessInstanceStoreContract {
 
 		assertThatThrownBy(() -> store.update(stale)).isInstanceOf(ProcessInstanceConflictException.class);
 		assertThat(store.instance(instance.instanceId()).orElseThrow().businessKey()).contains("order:1");
+	}
+
+	@Test
+	public void recordsEachPositionOfTheHistoryOnce() {
+		var store = newStore();
+		var journal = new ProcessJournal(REGISTRY, store, CLOCK);
+		var instance = journal.startProcessInstance(ORDER, CorrelationKey.newKey(), DONE);
+		var first = store.flowNodeInstances(instance.instanceId()).getFirst();
+		var repeated = new FlowNodeInstanceRecord(UUID.randomUUID(), first.processInstanceId(), first.sequence(),
+				first.processId(), first.processVersion(), first.correlationKey(), first.businessKey(), "ST-DECIDE",
+				first.elementType(), first.loopCounter(), first.occurredAt(), DONE);
+
+		assertThatThrownBy(() -> store.append(repeated)).isInstanceOf(ProcessInstanceConflictException.class)
+				.hasMessageContaining("already recorded");
+		assertThat(store.flowNodeInstances(instance.instanceId())).extracting(FlowNodeInstanceRecord::flowNodeId)
+				.containsExactly("ST-START");
+	}
+
+	@Test
+	public void listsTheVersionsThatStillHaveActiveInstances() {
+		var store = newStore();
+		var journal = new ProcessJournal(REGISTRY, store, CLOCK);
+		assertThat(store.activeVersions()).isEmpty();
+		var active = journal.startProcessInstance(ORDER, CorrelationKey.newKey(), DONE);
+		var finished = journal.startProcessInstance(ORDER, CorrelationKey.newKey(), DONE);
+
+		assertThat(store.activeVersions()).containsExactly(ORDER);
+		for (var instance : List.of(active, finished)) {
+			journal.selectSequenceFlow(instance, "ST-DECIDE", Order.Decision.ACCEPT);
+			journal.completeActivity(instance, "ST-WORK", DONE);
+			journal.reachEndEvent(instance, "ST-DONE", DONE);
+		}
+		assertThat(store.activeVersions()).isEmpty();
 	}
 
 	@Test

@@ -442,7 +442,9 @@ public class ProcessJournal {
 	}
 
 	private ProcessDefinition definitionOf(ProcessInstance instance) {
-		return registry.processDefinition(instance.ref());
+		return registry.definitions().process(instance.ref()).orElseThrow(() -> new ProcessConformanceException(
+				"Process instance " + instance.id() + " runs " + instance.ref() + ", which is no longer deployed: keep the"
+						+ " @Process class of every version that still has active instances"));
 	}
 
 	/** Nombre de un tipo tal como lo escribe el código ({@code Outer.Inner}), o el binario si no tiene nombre canónico. */

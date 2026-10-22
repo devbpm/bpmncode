@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -11,12 +12,15 @@ import org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfigur
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import io.github.eldiegos.bpmncode.model.ProcessDefinitionRef;
 import io.github.eldiegos.bpmncode.model.ProcessDefinitionRegistry;
 import io.github.eldiegos.bpmncode.model.reader.AnnotationProcessModelReader;
 import io.github.eldiegos.bpmncode.runtime.CorrelationKey;
 import io.github.eldiegos.bpmncode.runtime.DuplicateProcessInstanceException;
+import io.github.eldiegos.bpmncode.runtime.FlowNodeInstanceRecord;
 import io.github.eldiegos.bpmncode.runtime.FlowNodeOutcome;
 import io.github.eldiegos.bpmncode.runtime.HistoricFlowNodeInstance;
 import io.github.eldiegos.bpmncode.runtime.InMemoryProcessInstanceStore;
@@ -92,6 +96,25 @@ class JpaProcessInstanceStoreTests {
 			journal.setBusinessKey(instance, "order:8");
 			assertThatThrownBy(() -> store.update(stale)).isInstanceOf(ProcessInstanceConflictException.class);
 			assertThat(store.instance(instance.instanceId()).orElseThrow().businessKey()).contains("order:8");
+		});
+	}
+
+	@Test
+	void recordsEachPositionOfTheHistoryOnceAndListsTheActiveVersionsWithJpa() {
+		runner.run(context -> {
+			var journal = context.getBean(ProcessJournal.class);
+			var store = context.getBean(ProcessInstanceStore.class);
+			var transactions = new TransactionTemplate(context.getBean(PlatformTransactionManager.class));
+			var instance = journal.startProcessInstance(ORDER, CorrelationKey.newKey(), DONE);
+			var first = store.flowNodeInstances(instance.instanceId()).getFirst();
+			var repeated = new FlowNodeInstanceRecord(UUID.randomUUID(), first.processInstanceId(), first.sequence(),
+					first.processId(), first.processVersion(), first.correlationKey(), first.businessKey(), "ST-DECIDE",
+					first.elementType(), first.loopCounter(), first.occurredAt(), DONE);
+
+			assertThatThrownBy(() -> transactions.executeWithoutResult(status -> store.append(repeated)))
+					.isInstanceOf(ProcessInstanceConflictException.class).hasMessageContaining("already recorded");
+			assertThat(store.flowNodeInstances(instance.instanceId())).hasSize(1);
+			assertThat(store.activeVersions()).containsExactly(ORDER);
 		});
 	}
 

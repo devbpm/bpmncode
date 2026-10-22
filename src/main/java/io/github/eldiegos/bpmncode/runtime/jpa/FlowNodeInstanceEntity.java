@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 /**
  * Fila de {@code pac_flow_node_instance} para el almacén JPA.
@@ -20,7 +21,10 @@ import jakarta.persistence.Table;
  * @see JpaProcessInstanceStore
  */
 @Entity
-@Table(name = "pac_flow_node_instance", indexes = {
+@Table(name = "pac_flow_node_instance",
+		uniqueConstraints = @UniqueConstraint(name = "uk_pac_flow_node_instance_sequence",
+				columnNames = { "process_instance_id", "sequence" }),
+		indexes = {
 		@Index(name = "ix_pac_flow_node_instance_process_instance", columnList = "process_instance_id"),
 		@Index(name = "ix_pac_flow_node_instance_process_version", columnList = "process_id, process_version") })
 class FlowNodeInstanceEntity {

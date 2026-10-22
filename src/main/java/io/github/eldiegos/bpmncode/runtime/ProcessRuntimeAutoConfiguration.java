@@ -120,6 +120,20 @@ public class ProcessRuntimeAutoConfiguration {
 	}
 
 	/**
+	 * Aviso al arrancar si hay instancias activas de versiones que ya no están desplegadas.
+	 *
+	 * @param registry registro de definiciones
+	 * @param store almacén de instancias
+	 * @param properties propiedades {@code pac.process.store.*}
+	 * @return la comprobación
+	 */
+	@Bean
+	UndeployedVersionsCheck processUndeployedVersionsCheck(ProcessDefinitionRegistry registry, ProcessInstanceStore store,
+			ProcessStoreProperties properties) {
+		return new UndeployedVersionsCheck(registry, store, properties.undeployedVersions());
+	}
+
+	/**
 	 * Consultas sobre las instancias y su historial.
 	 *
 	 * @param registry registro de definiciones

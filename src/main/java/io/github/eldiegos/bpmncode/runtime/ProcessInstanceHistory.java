@@ -123,7 +123,8 @@ public class ProcessInstanceHistory {
 
 	private ProcessInstanceSummary summary(ProcessInstanceRecord stored) {
 		var instance = ProcessInstance.of(stored);
-		return instance.toSummary(registry.processDefinition(instance.ref()),
+		// Una versión retirada no impide mostrar sus instancias: solo deja de saberse adónde puede avanzar una activa.
+		return instance.toSummary(registry.definitions().process(instance.ref()),
 				flowNodeId -> flowNodeName(instance.ref(), flowNodeId));
 	}
 

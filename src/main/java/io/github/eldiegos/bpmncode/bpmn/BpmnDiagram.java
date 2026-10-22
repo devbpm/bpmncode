@@ -12,7 +12,7 @@ import io.github.eldiegos.bpmncode.model.ProcessDefinitionRef;
  * anterior concreta), o todos los que intercambian mensajes (en su versión vigente).
  * <p>
  * Invariantes: un diagrama de proceso tiene exactamente un proceso; una de colaboración tiene al menos dos y su
- * identificador es siempre {@value CollaborationDiagram#ID}.
+ * identificador es siempre {@value CollaborationDiagram#DIAGRAM_ID}.
  *
  * @see BpmnDiagramService#diagrams()
  */
@@ -94,7 +94,7 @@ public sealed interface BpmnDiagram permits BpmnDiagram.ProcessDiagram, BpmnDiag
 	record CollaborationDiagram(List<String> processIds) implements BpmnDiagram {
 
 		/** Identificador del diagrama de colaboración. */
-		public static final String ID = "COLLABORATION";
+		public static final String DIAGRAM_ID = "COLLABORATION";
 
 		public CollaborationDiagram {
 			processIds = List.copyOf(processIds);
@@ -105,7 +105,7 @@ public sealed interface BpmnDiagram permits BpmnDiagram.ProcessDiagram, BpmnDiag
 
 		@Override
 		public String id() {
-			return ID;
+			return DIAGRAM_ID;
 		}
 	}
 }

@@ -38,4 +38,13 @@ class FlowNodeOutcomeTests {
 		assertThat(FlowNodeOutcome.of("PERSON_CREATED")).isEqualTo(FlowNodeOutcome.parse("PERSON_CREATED"));
 		assertThat(FlowNodeOutcome.of("EVENT_RECEIVED", "EV-X")).isEqualTo(FlowNodeOutcome.parse("EVENT_RECEIVED:EV-X"));
 	}
+
+	@Test
+	void anOutcomeFitsWhatEveryStoreKeeps() {
+		var longest = "x".repeat(FlowNodeOutcome.MAX_LENGTH - "DONE:".length());
+
+		assertThat(FlowNodeOutcome.of("DONE", longest).toString()).hasSize(FlowNodeOutcome.MAX_LENGTH);
+		assertThatThrownBy(() -> FlowNodeOutcome.of("DONE", longest + "x")).isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("is 501 characters long; the evidence stores at most 500");
+	}
 }

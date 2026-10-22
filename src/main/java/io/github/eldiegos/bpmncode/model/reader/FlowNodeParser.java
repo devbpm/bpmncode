@@ -114,6 +114,8 @@ final class FlowNodeParser {
 				.flatMap(parsed -> parsed);
 	}
 
+	// Copia privada de los atributos de la anotación (que son arrays); nunca se compara ni se usa como clave, así que no
+	// necesita equals/hashCode por contenido.
 	/**
 	 * Lo común a las anotaciones de tarea.
 	 * <p>
@@ -130,6 +132,7 @@ final class FlowNodeParser {
 	 * @param loop bucle estándar declarado: cero o uno
 	 * @see #task(TaskDeclaration, Method, ProcessDefinitionRef, String, String, TaskFactory)
 	 */
+	@SuppressWarnings("java:S6218")
 	private record TaskDeclaration(String id, String name, String documentation, SequenceFlow[] outgoing,
 			String[] businessRuleRefs, StandardLoop[] loop) {
 	}
@@ -246,7 +249,7 @@ final class FlowNodeParser {
 		var identified = hasIdentity(task.id(), task.name(), ref, location);
 		var outgoing = singleUnconditional(task.outgoing(), location, elementName);
 		var ruleRefs = rules.resolve(task.businessRuleRefs(), location, diagnostics);
-		var valid = ownDataValid & outgoing.isPresent() & ruleRefs.size() == task.businessRuleRefs().length;
+		var valid = ownDataValid && outgoing.isPresent() && ruleRefs.size() == task.businessRuleRefs().length;
 		var loop = loopOf(task.loop(), location);
 		valid &= loop.isPresent();
 		if (!identified || !valid) {
@@ -278,7 +281,7 @@ final class FlowNodeParser {
 				"a human performer", location);
 		var declaration = new TaskDeclaration(task.id(), task.name(), task.documentation(), task.outgoing(),
 				task.businessRuleRefs(), task.loop());
-		return task(declaration, method, ref, location, "a user task", owners.isPresent() & performers.isPresent(),
+		return task(declaration, method, ref, location, "a user task", owners.isPresent() && performers.isPresent(),
 				(id, processId, name, documentation, implementation, ruleRefs, loop) -> new FlowNode.UserTask(id, processId,
 						name, documentation, implementation, ruleRefs, loop, owners.orElseThrow(), performers.orElseThrow()));
 	}

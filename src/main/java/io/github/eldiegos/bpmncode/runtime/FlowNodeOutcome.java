@@ -13,7 +13,8 @@ import io.github.eldiegos.bpmncode.model.MessageVersionRef;
  * con la clave {@code evidence.<código>} y para que se guarde siempre igual.
  * <p>
  * Invariantes: el código está en mayúsculas ({@code [A-Z][A-Z0-9_]*}); el detalle, si existe, no está vacío. El formato
- * persistido es {@code CÓDIGO} o {@code CÓDIGO:detalle} y {@link #parse(String)} es su inversa exacta.
+ * persistido es {@code CÓDIGO} o {@code CÓDIGO:detalle}, de como mucho {@link #MAX_LENGTH} caracteres para que todos
+ * los almacenes lo guarden igual, y {@link #parse(String)} es su inversa exacta.
  *
  * @param code código del resultado, p. ej. {@code RULES_VIOLATED}
  * @param detail detalle no traducible, p. ej. {@code R-PER-001}
@@ -36,16 +37,27 @@ public record FlowNodeOutcome(String code, Optional<String> detail) {
 	/** Código de un evento de inicio que recibe un mensaje, con la versión; lo usa {@link #messageReceived(MessageVersionRef)}. */
 	public static final String MESSAGE_RECEIVED = "MESSAGE_RECEIVED";
 
-	private static final Pattern CODE = Pattern.compile("[A-Z][A-Z0-9_]*");
+	/**
+	 * Longitud máxima del resultado en su formato persistido ({@code CÓDIGO:detalle}): la de la columna {@code outcome} de
+	 * {@code pac_flow_node_instance}.
+	 */
+	public static final int MAX_LENGTH = 500;
+
+	private static final Pattern CODE_PATTERN = Pattern.compile("[A-Z][A-Z0-9_]*");
 	private static final char SEPARATOR = ':';
 
 	public FlowNodeOutcome {
-		if (code == null || !CODE.matcher(code).matches()) {
+		if (code == null || !CODE_PATTERN.matcher(code).matches()) {
 			throw new IllegalArgumentException("Invalid outcome code: " + code);
 		}
 		Objects.requireNonNull(detail, "detail");
 		if (detail.filter(String::isBlank).isPresent()) {
 			throw new IllegalArgumentException("Outcome detail must not be blank");
+		}
+		var length = code.length() + detail.map(value -> value.length() + 1).orElse(0);
+		if (length > MAX_LENGTH) {
+			throw new IllegalArgumentException("Outcome " + code + " is " + length + " characters long; the evidence stores at"
+					+ " most " + MAX_LENGTH);
 		}
 	}
 
